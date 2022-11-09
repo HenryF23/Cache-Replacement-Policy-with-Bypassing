@@ -1,5 +1,4 @@
 #!/bin/bash
-cd "$(dirname "$0")"
 if [[ -z "${TRACE_DIR}" ]]
 then
     echo "Added PATH for TRACE_DIR"
