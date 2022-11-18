@@ -67,6 +67,17 @@ void CACHE::lru_update(uint32_t set, uint32_t way)
     block[set][way].lru = 0; // promote to the MRU position
 }
 
+void CACHE::slru_update(uint32_t set, uint32_t way, block_group myGroup)
+{
+    // update lru replacement state
+    for (uint32_t i = 0; i < NUM_WAY; i++) {
+        if (block[set][i].current_group == myGroup && (block[set][i].slru < block[set][way].slru)) {
+            block[set][i].slru++;
+        }
+    }
+    block[set][way].slru = 0; // promote to the MRU position
+}
+
 void CACHE::replacement_final_stats()
 {
 

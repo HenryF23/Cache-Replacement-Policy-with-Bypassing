@@ -5,6 +5,10 @@
 #include "instruction.h"
 #include "set.h"
 
+typedef enum block_group {
+    prob, prot
+} block_group;
+
 // CACHE BLOCK
 class BLOCK {
   public:
@@ -28,6 +32,9 @@ class BLOCK {
     // replacement state
     uint32_t lru;
 
+    uint32_t slru;
+    block_group current_group;
+
     BLOCK() {
         valid = 0;
         prefetch = 0;
@@ -47,6 +54,9 @@ class BLOCK {
         instr_id = 0;
 
         lru = 0;
+
+        current_group = prob;
+        slru = 0;
     };
 };
 

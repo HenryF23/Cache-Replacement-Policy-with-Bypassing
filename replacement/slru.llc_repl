@@ -1,5 +1,7 @@
 #include "cache.h"
 
+uint32_t numProbationaryBlocks = 0;
+
 // initialize replacement state
 void CACHE::llc_initialize_replacement()
 {
@@ -8,8 +10,27 @@ void CACHE::llc_initialize_replacement()
 // find replacement victim
 uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type)
 {
-    // baseline LRU
-    return lru_victim(cpu, instr_id, set, current_set, ip, full_addr, type);
+    uint32_t way = 0;
+
+    for (way = 0; way < NUM_WAY; way++) {
+        if (block[set][way].valid == false) {
+            return way;
+        }
+    }
+
+    if (way == NUM_WAY) {
+        for (way = 0; way < NUM_WAY; way++) {
+            if ((block[set][way].slru == NUM_WAY-1) && block[set][way].current_group == prob) {
+                return way;
+            }
+        }
+
+        for (way=0; way < NUM_WAY; way++) {
+            if ((block[set][way].slru == NUM_WAY-1) && block[set][way].current_group == prot) {
+                return way;
+            }
+        }
+    }
 }
 
 // called on every cache hit and cache fill
@@ -39,6 +60,19 @@ void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t wa
     // cout << "CPU: " << cpu << "  LLC " << setw(9) << TYPE_NAME << " set: " << setw(5) << set << " way: " << setw(2) << way;
     // cout << hex << " paddr: " << setw(12) << paddr << " ip: " << setw(8) << ip << " victim_addr: " << victim_addr << dec << endl;
 
+    if (type != WRITEBACK) { // * may be we can also update on writeback?
+        if (hit) {
+            // move to protected
+            block[set][way].current_group = prot
+            slru_update(set, way, prot);
+        } else {
+            // move to probationary
+            block[set][way].current_group = prob
+            slru_update(set, way, prob);
+        }
+    }
+
+    // * Below can be deleted
     // baseline LRU
     if (hit && (type == WRITEBACK)) // writeback hit does not update LRU state
         return;
