@@ -1,0 +1,163 @@
+#include "cache.h"
+#include <random>
+#include <vector>
+
+// Probability of bypassing: 1/prob
+int prob_table[5] = {1, 2, 4, 8, 0};
+
+// Each set will have a BYPASS_INFO
+struct BYPASS_INFO
+{   // Index of prob_table, initial prob = 0.5
+    int prob = 1;
+    // competitor_tag store the tag of bypassed line
+    std::vector<uint64_t> competitor_tag;
+    // competitor_way store the tag of victim (been replaced) line
+    std::vector<uint64_t> competitor_way;
+};
+
+BYPASS_INFO* bypass_control;
+
+// If n is 0, will return false
+bool prob_of_n_choose_1(int n)
+{
+    if(n <= 0){
+        return false;
+    }
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(1, n);
+
+    if(dist(rng) == 1){
+        return true;
+    }
+
+    return false;
+}
+
+// initialize replacement state
+void CACHE::llc_initialize_replacement()
+{
+    bypass_control = new BYPASS_INFO[LLC_SET];
+}
+
+// This function will return a bool to indicate bypass decision
+// It should be called after found the victim way
+bool CACHE::bypass_decider(uint32_t curr_set, const BLOCK *current_set, uint32_t victim_way)
+{
+    bool result = prob_of_n_choose_1(prob_table[bypass_control[curr_set].prob]);
+    // Decide to bypass
+    if(result){
+        // Store the tag to evaluate the effect of bypassing
+        bypass_control[curr_set].competitor_tag.push_back(current_set->tag);
+        bypass_control[curr_set].competitor_way.push_back(block[curr_set][victim_way].tag);
+    }
+    // Decide not to bypass
+    else{
+        // How to define the "some newly allocated lines"?
+    }
+
+    return result;
+}
+
+template <typename F>
+int vector_find(std::vector<F>& vec, F tar)
+{
+    int index = 0;
+    for(auto& i : vec){
+        if (i == tar){
+            return index;
+        }
+        index++;
+    }
+    return -1;
+}
+
+void decr_prob(int& prob)
+{
+    int prob_size = sizeof(prob_table) / sizeof(prob_table[0]);
+    if(prob < prob_size - 1){
+        prob++;
+    }
+}
+
+void incre_prob(int& prob)
+{
+    if(prob > 0){
+        prob--;
+    }
+}
+
+// This function must be called for each cache replacement!! (can before found the victim line)
+// It updates the bypass probability for set (if there exist competition)
+void bypass_evaluator(uint32_t curr_set, const BLOCK *current_set)
+{
+    int index = vector_find(bypass_control[curr_set].competitor_tag, current_set->tag);
+    // Bypassed line win, ineffective bypass
+    if (index != -1){
+        decr_prob(bypass_control[curr_set].prob);
+        // Competition done, remove them from the list
+        bypass_control[curr_set].competitor_tag.erase(bypass_control[curr_set].competitor_tag.begin() + index);
+        bypass_control[curr_set].competitor_way.erase(bypass_control[curr_set].competitor_way.begin() + index);
+    }
+
+    index = vector_find(bypass_control[curr_set].competitor_way, current_set->tag);
+    // Victim line win, effective bypass
+    if (index != -1){
+        incre_prob(bypass_control[curr_set].prob);
+        // Competition done, remove them from the list
+        bypass_control[curr_set].competitor_tag.erase(bypass_control[curr_set].competitor_tag.begin() + index);
+        bypass_control[curr_set].competitor_way.erase(bypass_control[curr_set].competitor_way.begin() + index);
+    }
+}
+
+// find replacement victim
+uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type)
+{
+    // baseline LRU
+
+    // int way_size = NUM_WAY;
+    // printf("[cpu, instr_id, set, way, ip, full_addr, type] : [%d, %ld, %d, %d, %ld, %ld, %d]\n", cpu, instr_id, set, way_size, ip, full_addr, type);
+
+    // printf("[address, full_addr, tag, data, cpu, instr_id]: [%ld, %ld, %ld, %ld, %ld, %ld]\n", current_set->address, current_set->full_addr,current_set->tag,current_set->data,current_set->cpu,current_set->instr_id);
+
+    return lru_victim(cpu, instr_id, set, current_set, ip, full_addr, type); 
+}
+
+// called on every cache hit and cache fill
+void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t way, uint64_t full_addr, uint64_t ip, uint64_t victim_addr, uint32_t type, uint8_t hit)
+{
+    string TYPE_NAME;
+    if (type == LOAD)
+        TYPE_NAME = "LOAD";
+    else if (type == RFO)
+        TYPE_NAME = "RFO";
+    else if (type == PREFETCH)
+        TYPE_NAME = "PF";
+    else if (type == WRITEBACK)
+        TYPE_NAME = "WB";
+    else
+        assert(0);
+
+    if (hit)
+        TYPE_NAME += "_HIT";
+    else
+        TYPE_NAME += "_MISS";
+
+    if ((type == WRITEBACK) && ip)
+        assert(0);
+
+    // uncomment this line to see the LLC accesses
+    // cout << "CPU: " << cpu << "  LLC " << setw(9) << TYPE_NAME << " set: " << setw(5) << set << " way: " << setw(2) << way;
+    // cout << hex << " paddr: " << setw(12) << paddr << " ip: " << setw(8) << ip << " victim_addr: " << victim_addr << dec << endl;
+
+    // baseline LRU
+    if (hit && (type == WRITEBACK)) // writeback hit does not update LRU state
+        return;
+
+    return lru_update(set, way);
+}
+
+void CACHE::llc_replacement_final_stats()
+{
+    delete[] bypass_control;
+}
