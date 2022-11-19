@@ -81,45 +81,86 @@ void CACHE::handle_fill()
             assert(0);
 #endif
 
-        uint32_t mshr_index = MSHR.next_fill_index;
+    // This is the "new line" MSHR.entry[mshr_index]
+    uint32_t mshr_index = MSHR.next_fill_index;
 
-        // find victim
-        uint32_t set = get_set(MSHR.entry[mshr_index].address), way;
-        if (cache_type == IS_LLC) {
-            way = llc_find_victim(fill_cpu, MSHR.entry[mshr_index].instr_id, set, block[set], MSHR.entry[mshr_index].ip, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].type);
-        }
-        else
-            way = find_victim(fill_cpu, MSHR.entry[mshr_index].instr_id, set, block[set], MSHR.entry[mshr_index].ip, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].type);
+    // find victim
+    uint32_t set = get_set(MSHR.entry[mshr_index].address), way;
+    if (cache_type == IS_LLC) {
+        way = llc_find_victim(fill_cpu, MSHR.entry[mshr_index].instr_id, set, block[set], MSHR.entry[mshr_index].ip, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].type);
+    }
+    else
+        way = find_victim(fill_cpu, MSHR.entry[mshr_index].instr_id, set, block[set], MSHR.entry[mshr_index].ip, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].type);
 
-#ifdef LLC_BYPASS
-        if ((cache_type == IS_LLC) && (way == LLC_WAY)) { // this is a bypass that does not fill the LLC
+//Edit by Haoyuan Start
 
+// #ifdef LLC_BYPASS
+    // if ((cache_type == IS_LLC) && (way == LLC_WAY)) { // this is a bypass that does not fill the LLC
+    //     // update replacement policy
+    //     if (cache_type == IS_LLC) {
+    //         llc_update_replacement_state(fill_cpu, set, way, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].ip, 0, MSHR.entry[mshr_index].type, 0);
+    //     }
+    //     else
+    //         update_replacement_state(fill_cpu, set, way, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].ip, 0, MSHR.entry[mshr_index].type, 0);
+
+    //     // COLLECT STATS
+    //     sim_miss[fill_cpu][MSHR.entry[mshr_index].type]++;
+    //     sim_access[fill_cpu][MSHR.entry[mshr_index].type]++;
+
+    //     // check fill level
+    //     if (MSHR.entry[mshr_index].fill_level < fill_level) {
+
+    //         if (MSHR.entry[mshr_index].instruction) 
+    //             upper_level_icache[fill_cpu]->return_data(&MSHR.entry[mshr_index]);
+    //         else // data
+    //             upper_level_dcache[fill_cpu]->return_data(&MSHR.entry[mshr_index]);
+    //     }
+
+    //     if(warmup_complete[fill_cpu]){
+    //         uint64_t current_miss_latency = (current_core_cycle[fill_cpu] - MSHR.entry[mshr_index].cycle_enqueued);	
+    //         total_miss_latency += current_miss_latency;
+    //     }
+
+    //     MSHR.remove_queue(&MSHR.entry[mshr_index]);
+    //     MSHR.num_returned--;
+
+    //     update_fill_cycle();
+
+    //     return; // return here, no need to process further in this function
+    // }
+// #endif
+
+
+#ifdef MY_BYPASS 
+    if(cache_type == IS_LLC){
+        // Evaluate the bypass effect (check competition) 
+        bypass_evaluator(set, MSHR.entry[mshr_index].address);
+
+        // Decide to bypass
+        if(bypass_decider(set, MSHR.entry[mshr_index].address, block[set][way].tag)){
             // update replacement policy
             if (cache_type == IS_LLC) {
                 llc_update_replacement_state(fill_cpu, set, way, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].ip, 0, MSHR.entry[mshr_index].type, 0);
-
             }
             else
                 update_replacement_state(fill_cpu, set, way, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].ip, 0, MSHR.entry[mshr_index].type, 0);
-
+            
             // COLLECT STATS
             sim_miss[fill_cpu][MSHR.entry[mshr_index].type]++;
             sim_access[fill_cpu][MSHR.entry[mshr_index].type]++;
 
             // check fill level
             if (MSHR.entry[mshr_index].fill_level < fill_level) {
-
-                if (MSHR.entry[mshr_index].instruction) 
+                if (MSHR.entry[mshr_index].instruction)
                     upper_level_icache[fill_cpu]->return_data(&MSHR.entry[mshr_index]);
                 else // data
                     upper_level_dcache[fill_cpu]->return_data(&MSHR.entry[mshr_index]);
             }
 
-	    if(warmup_complete[fill_cpu])
-	      {
-		uint64_t current_miss_latency = (current_core_cycle[fill_cpu] - MSHR.entry[mshr_index].cycle_enqueued);	
-		total_miss_latency += current_miss_latency;
-	      }
+            if(warmup_complete[fill_cpu]){
+                uint64_t current_miss_latency = (current_core_cycle[fill_cpu] - MSHR.entry[mshr_index].cycle_enqueued);	
+                total_miss_latency += current_miss_latency;
+            }
 
             MSHR.remove_queue(&MSHR.entry[mshr_index]);
             MSHR.num_returned--;
@@ -128,7 +169,11 @@ void CACHE::handle_fill()
 
             return; // return here, no need to process further in this function
         }
+    }
 #endif
+
+//Edit by Haoyuan End
+
 
         uint8_t  do_fill = 1;
 
