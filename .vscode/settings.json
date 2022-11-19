@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.llc_repl": "cpp",
+        "ostream": "cpp"
+    }
+}
