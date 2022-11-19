@@ -47,9 +47,9 @@ uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, c
             return (uint32_t)victimBlock;
     }
 
-    std::cout << "No victim block found!\n";
+    std::cout << "DEBUG: No victim block found!\n";
 
-    return;
+    return 0; // Normally. this line should not be executed
 }
 
 // called on every cache hit and cache fill
@@ -84,26 +84,33 @@ void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t wa
 
     if (!hit && (type == LOAD || type == RFO)) { // miss, newly allocated line
         // aging
-        int tempSLRU = -1;
-        for (uint32_t i = 0; i < way; i++) {
-            if (i != way && block[set][way].valid && block[set][way].current_group == prot) {
-                if (block[set][way].slru > tempSLRU)
-                    tempSLRU = i;
+        if (AGING_ACTIVE) {
+            int tempSLRU = -1;
+            for (uint32_t i = 0; i < way; i++)
+            {
+                if (i != way && block[set][way].valid && block[set][way].current_group == prot)
+                {
+                    if (block[set][way].slru > tempSLRU)
+                        tempSLRU = i;
+                }
+            }
+
+            if (tempSLRU >= 0)
+            {
+                block[set][way].current_group = prob;
+                slru_update(set, way);
             }
         }
 
-        if (tempSLRU >= 0) {
-            block[set][way].current_group = prob;
+        // random promotion
+        if (RANDOM_PROMOTION_ACTIVE) {
+            if (RANDOM_PROMOTION_ACTIVE && rand() % 100 < RANDOM_PROMOTION_PROB)
+                block[set][way].current_group = prot;
+            else
+                block[set][way].current_group = prob;
+
             slru_update(set, way);
         }
-
-        // random promotion
-        if (RANDOM_PROMOTION_ACTIVE && rand() % 100 < RANDOM_PROMOTION_PROB)
-            block[set][way].current_group = prot;
-        else
-            block[set][way].current_group = prob;
-
-        slru_update(set, way);
 
         // TODO: add virtual bypass
     }

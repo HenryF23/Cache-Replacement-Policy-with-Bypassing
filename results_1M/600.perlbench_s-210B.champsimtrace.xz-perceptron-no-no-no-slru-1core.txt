@@ -1,6 +1,6 @@
 *************************************************
    ChampSim Multicore Out-of-Order Simulator
-   Last compiled: Nov 18 2022 17:50:20
+   Last compiled: Nov 19 2022 14:43:49
 *************************************************
 
 trace_0 /data/dpc3_traces//600.perlbench_s-210B.champsimtrace.xz
