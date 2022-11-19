@@ -26,25 +26,28 @@ uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, c
     }
 
     if (way == NUM_WAY) {
-        int32_t victimBlock = -1;
+        uint32_t victimBlock = 0;
+        uint32_t victimBlockSLRU = 0;
         for (way = 0; way < NUM_WAY; way++) {
-            if (block[set][way].current_group == prob && (block[set][way].slru > victimBlock)) {
+            if (block[set][way].current_group == prob && (block[set][way].slru >= victimBlockSLRU)) {
+                victimBlock = way;
+                victimBlockSLRU = block[set][way].slru;
+            }
+        }
+
+        if (block[set][victimBlock].current_group == prob)
+            return victimBlockSLRU;
+
+        victimBlock = 0;
+        victimBlockSLRU = 0;
+        for (way = 0; way < NUM_WAY; way++) {
+            if (block[set][way].current_group == prot && (block[set][way].slru >= victimBlock)) {
                 victimBlock = way;
             }
         }
 
-        if (victimBlock != -1)
-            return (uint32_t)victimBlock;
-
-        victimBlock = -1;
-        for (way = 0; way < NUM_WAY; way++) {
-            if (block[set][way].current_group == prot && (block[set][way].slru > victimBlock)) {
-                victimBlock = way;
-            }
-        }
-
-        if (victimBlock != -1)
-            return (uint32_t)victimBlock;
+        if (block[set][victimBlock].current_group == prot)
+            return victimBlockSLRU;
     }
 
     std::cout << "DEBUG: No victim block found!\n";
@@ -85,17 +88,17 @@ void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t wa
     if (!hit && (type == LOAD || type == RFO)) { // miss, newly allocated line
         // aging
         if (AGING_ACTIVE) {
-            int tempSLRU = -1;
+            uint32_t tempSLRU = 0;
             for (uint32_t i = 0; i < way; i++)
             {
                 if (i != way && block[set][way].valid && block[set][way].current_group == prot)
                 {
-                    if (block[set][way].slru > tempSLRU)
+                    if (block[set][way].slru >= tempSLRU)
                         tempSLRU = i;
                 }
             }
 
-            if (tempSLRU >= 0)
+            if (block[set][tempSLRU].valid && block[set][tempSLRU].current_group == prot)
             {
                 block[set][way].current_group = prob;
                 slru_update(set, way);
