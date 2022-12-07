@@ -136,8 +136,16 @@ void CACHE::handle_fill()
         // Evaluate the bypass effect (check competition) 
         bypass_evaluator(set, MSHR.entry[mshr_index].address);
 
+        bool bypass_flag = false;
+        #ifdef VIRTUAL_BY
+            uint64_t virtual_tag = virtual_bypass_helper(set);
+            bypass_flag = bypass_decider(set, MSHR.entry[mshr_index].address, block[set][way].tag, virtual_tag);
+            virtual_bp_report();
+        #else
+            bypass_flag = bypass_decider(set, MSHR.entry[mshr_index].address, block[set][way].tag, 0);
+        #endif
         // Decide to bypass
-        if(bypass_decider(set, MSHR.entry[mshr_index].address, block[set][way].tag)){
+        if(bypass_flag){
             // update replacement policy
             if (cache_type == IS_LLC) {
                 llc_update_replacement_state(fill_cpu, set, way, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].ip, 0, MSHR.entry[mshr_index].type, 0);

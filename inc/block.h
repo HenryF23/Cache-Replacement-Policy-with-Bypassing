@@ -31,7 +31,7 @@ class BLOCK {
 
     // replacement state
     uint32_t lru;
-
+    int lri;
     uint32_t slru;
     block_group current_group;
 
@@ -57,6 +57,8 @@ class BLOCK {
 
         current_group = prob;
         slru = 0;
+        //Least recently insert:
+        lri = 0;
     };
 };
 

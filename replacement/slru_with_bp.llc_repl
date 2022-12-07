@@ -11,6 +11,8 @@ int prob_table[5] = {1, 2, 4, 8, 0};
 // Random number generator
 std::random_device dev;
 std::mt19937 rng(dev());
+// Define the number of ways we considerd as recently inserted
+#define LRI_THRESHOLD 4
 
 #define RANDOM_PROMOTION_PROB 32 // p = 1/32 gets promoted
 #define RANDOM_PROMOTION_ACTIVE true
@@ -36,6 +38,16 @@ void bypass_report()
     }
 }
 
+void CACHE::virtual_bp_report()
+{
+    for(int set = 0; set < 2048; ++set){
+        printf("In set %d:\n", set);
+        for(int way = 0; way < (int)NUM_WAY; ++way){
+            printf("Way %d's lri is %d\n", way, block[set][way].lri);
+        }
+    }
+}
+
 // If n is 0, will return false
 bool prob_of_n_choose_1(int n)
 {
@@ -53,25 +65,40 @@ bool prob_of_n_choose_1(int n)
     return false;
 }
 
+uint64_t CACHE::virtual_bypass_helper(uint32_t curr_set){
+    std::vector<int> candidate_index;
+    for(int i = 0; i < (int)NUM_WAY; ++i){
+        if(block[curr_set][i].lri < LRI_THRESHOLD){
+            candidate_index.push_back(i);
+        }
+    }
+
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0, LRI_THRESHOLD - 1);
+    uint64_t luckboy_tag = block[curr_set][candidate_index[(int)dist(rng)]].tag; 
+
+    return luckboy_tag;
+}
+
 // This function will return a bool to indicate bypass decision
 // It should be called after found the victim way
-bool CACHE::bypass_decider(uint32_t curr_set, uint64_t newline_tag, uint64_t victim_tag)
+bool CACHE::bypass_decider(uint32_t curr_set, uint64_t newline_tag, uint64_t victim_tag, uint64_t virtual_tag)
 {
     bool result = prob_of_n_choose_1(prob_table[bypass_control[curr_set].prob]);
     // Decide to bypass
-    if (result)
-    {
+    if (result){
         // Store the tag to evaluate the effect of bypassing
         bypass_control[curr_set].competitor_tag.push_back(newline_tag);
         bypass_control[curr_set].competitor_way.push_back(victim_tag);
     }
     // Decide not to bypass
-    else
-    {
+    else{
         // Virtual bypassing evaluate
-        // How to define the "some newly allocated lines"?
+        #ifdef VIRTUAL_BY
+            bypass_control[curr_set].competitor_way.push_back(virtual_tag);
+        #else
+            bypass_control[curr_set].competitor_way.push_back(victim_tag);
+        #endif
         bypass_control[curr_set].competitor_tag.push_back(newline_tag);
-        bypass_control[curr_set].competitor_way.push_back(victim_tag);
     }
 
     return result;
@@ -209,6 +236,13 @@ void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t wa
 
             slru_update(set, way);
         }
+
+        // Update lri for virtual bypass
+        for(int i = 0; i < (int)NUM_WAY; ++i) {
+            if(i != (int)way && block[set][i].valid && block[set][i].lri < LRI_THRESHOLD){
+                block[set][i].lri++;
+            }
+        }
     }
 
     if (type != WRITEBACK && hit) {
@@ -220,5 +254,5 @@ void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t wa
 
 void CACHE::llc_replacement_final_stats()
 {
-    
+
 }
