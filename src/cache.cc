@@ -140,7 +140,7 @@ void CACHE::handle_fill()
         #ifdef VIRTUAL_BY
             uint64_t virtual_tag = virtual_bypass_helper(set);
             bypass_flag = bypass_decider(set, MSHR.entry[mshr_index].address, block[set][way].tag, virtual_tag);
-            virtual_bp_report();
+            // virtual_bp_report();
         #else
             bypass_flag = bypass_decider(set, MSHR.entry[mshr_index].address, block[set][way].tag, 0);
         #endif
