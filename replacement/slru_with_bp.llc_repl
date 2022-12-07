@@ -219,18 +219,18 @@ void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t wa
         // aging
         if (AGING_ACTIVE) {
             uint32_t tempSLRU = 0;
-            for (uint32_t i = 0; i < way; i++)
+            for (uint32_t i = 0; i < NUM_WAY; i++)
             {
-                if (i != way && block[set][way].valid && block[set][way].current_group == prot)
+                if (i != way && block[set][i].valid && block[set][i].current_group == prot)
                 {
-                    if (block[set][way].slru >= tempSLRU)
+                    if (block[set][i].slru >= tempSLRU)
                         tempSLRU = i;
                 }
             }
 
             if (block[set][tempSLRU].valid && block[set][tempSLRU].current_group == prot)
             {
-                block[set][way].current_group = prob;
+                block[set][tempSLRU].current_group = prob;
                 slru_update(set, way);
             }
         }
