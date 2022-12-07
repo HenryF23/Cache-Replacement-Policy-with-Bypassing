@@ -107,27 +107,27 @@ uint32_t CACHE::slru_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const
             return way;
     }
 
-    uint32_t victimBlockProt = 0;
+    uint32_t victimBlockProtWay = 0;
     uint32_t victimBlockSLRUProt = 0;
-    uint32_t victimBlockProb = 0;
+    uint32_t victimBlockProbWay = 0;
     uint32_t victimBlockSLRUProb = 0;
 
     if (way == NUM_WAY) {
         for (way = 0; way < NUM_WAY; way++) {
             if (block[set][way].current_group == prob && (block[set][way].slru >= victimBlockSLRUProb)) {
-                victimBlockProb = way;
+                victimBlockProbWay = way;
                 victimBlockSLRUProb = block[set][way].slru;
-            } else if (block[set][way].current_group == prot && (block[set][way].slru >= victimBlockProt)) {
-                victimBlockProt = way;
+            } else if (block[set][way].current_group == prot && (block[set][way].slru >= victimBlockSLRUProt)) {
+                victimBlockProtWay = way;
                 victimBlockSLRUProt = block[set][way].slru;
             }
         }
 
-        if (block[set][victimBlockProb].current_group == prob)
-            return victimBlockProb;
+        if (block[set][victimBlockProbWay].current_group == prob)
+            return victimBlockProbWay;
     }
 
-    return victimBlockProt;
+    return victimBlockProtWay;
 }
 
 void CACHE::replacement_final_stats()
