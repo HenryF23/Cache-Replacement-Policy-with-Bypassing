@@ -107,10 +107,8 @@ uint32_t CACHE::slru_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const
             return way;
     }
 
-    uint32_t victimBlockProtWay = 0;
-    uint32_t victimBlockSLRUProt = 0;
-    uint32_t victimBlockProbWay = 0;
-    uint32_t victimBlockSLRUProb = 0;
+    uint32_t victimBlockProtWay = 0, victimBlockSLRUProt = 0,
+             victimBlockProbWay = 0, victimBlockSLRUProb = 0;
 
     if (way == NUM_WAY) {
         for (way = 0; way < NUM_WAY; way++) {
