@@ -102,49 +102,32 @@ uint32_t CACHE::slru_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const
 {
     uint32_t way = 0;
 
-    for (way = 0; way < NUM_WAY; way++)
-    {
+    for (way = 0; way < NUM_WAY; way++) {
         if (block[set][way].valid == false)
-        {
             return way;
-        }
     }
 
-    if (way == NUM_WAY)
-    {
-        uint32_t victimBlock = 0;
-        uint32_t victimBlockSLRU = 0;
+    uint32_t victimBlockProt = 0;
+    uint32_t victimBlockSLRUProt = 0;
+    uint32_t victimBlockProb = 0;
+    uint32_t victimBlockSLRUProb = 0;
 
-        // TODO: combine two loops into one loop
-        for (way = 0; way < NUM_WAY; way++)
-        {
-            if (block[set][way].current_group == prob && (block[set][way].slru >= victimBlockSLRU))
-            {
-                victimBlock = way;
-                victimBlockSLRU = block[set][way].slru;
+    if (way == NUM_WAY) {
+        for (way = 0; way < NUM_WAY; way++) {
+            if (block[set][way].current_group == prob && (block[set][way].slru >= victimBlockSLRUProb)) {
+                victimBlockProb = way;
+                victimBlockSLRUProb = block[set][way].slru;
+            } else if (block[set][way].current_group == prot && (block[set][way].slru >= victimBlockProt)) {
+                victimBlockProt = way;
+                victimBlockSLRUProt = block[set][way].slru;
             }
         }
 
-        if (block[set][victimBlock].current_group == prob)
-            return victimBlockSLRU;
-
-        victimBlock = 0;
-        victimBlockSLRU = 0;
-        for (way = 0; way < NUM_WAY; way++)
-        {
-            if (block[set][way].current_group == prot && (block[set][way].slru >= victimBlock))
-            {
-                victimBlock = way;
-            }
-        }
-
-        if (block[set][victimBlock].current_group == prot)
-            return victimBlockSLRU;
+        if (block[set][victimBlockProb].current_group == prob)
+            return victimBlockProb;
     }
 
-    std::cout << "DEBUG: No victim block found!\n";
-
-    return 0; // Normally. this line should not be executed
+    return victimBlockProt;
 }
 
 void CACHE::replacement_final_stats()

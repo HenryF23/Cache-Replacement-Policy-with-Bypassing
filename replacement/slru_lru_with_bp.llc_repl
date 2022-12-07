@@ -150,9 +150,10 @@ void CACHE::llc_initialize_replacement()
 // find replacement victim
 uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type)
 {
-
     uint32_t lru_victim_val = lru_victim(cpu, instr_id, set, current_set, ip, full_addr, type);
     uint32_t slru_victim_val = slru_victim(cpu, instr_id, set, current_set, ip, full_addr, type);
+
+    return slru_victim_val;
 }
 
 // called on every cache hit and cache fill
@@ -215,8 +216,6 @@ void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t wa
 
             slru_update(set, way);
         }
-
-        // TODO: add virtual bypass
     }
 
     if (type != WRITEBACK && hit) {
