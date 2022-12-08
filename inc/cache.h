@@ -2,12 +2,13 @@
 #define CACHE_H
 
 #include "memory_class.h"
+#include "../replacement/enhancement_switch.h"
 
 // PAGE
 extern uint32_t PAGE_TABLE_LATENCY, SWAP_LATENCY;
 
-#define MY_BYPASS
-#define VIRTUAL_BY
+// #define MY_BYPASS
+// #define VIRTUAL_BY
 
 // CACHE TYPE
 #define IS_ITLB 0

@@ -3,150 +3,11 @@
 // * SLRU
 #include <cstdlib>
 #include <time.h>
-// bypass
-#include <vector>
 
-// policy selector
-#define NUM_LEADER_SET 32
 typedef enum leader_type {
     not_leader, lru_leader, slru_leader
 } leader_type;
-int8_t policy_counter = 0
-
-// Probability of bypassing: 1/prob
-int prob_table[5] = {1, 2, 4, 8, 0};
-// Random number generator
-std::random_device dev;
-std::mt19937 rng(dev());
-
-// set dueling
-int32_t set_dueling_counter = 0;
-
-#define RANDOM_PROMOTION_PROB 32 // p = 1/32 gets promoted
-#define RANDOM_PROMOTION_ACTIVE true
-#define AGING_ACTIVE true
-
-// Each set will have a BYPASS_INFO
-struct BYPASS_INFO
-{ // Index of prob_table, initial prob = 0.5
-    int prob = 1;
-    // competitor_tag store the tag of bypassed line
-    std::vector<uint64_t> competitor_tag;
-    // competitor_way store the tag of victim (been replaced) line
-    std::vector<uint64_t> competitor_way;
-};
-
-BYPASS_INFO bypass_control[LLC_SET];
-
-void bypass_report()
-{
-    for (int i = 0; i < LLC_SET; ++i)
-    {
-        printf("[set, prob, size of tag, size of way]: [%d, %d, %ld, %ld]\n", i, bypass_control[i].prob, bypass_control[i].competitor_tag.size(), bypass_control[i].competitor_way.size());
-    }
-}
-
-// If n is 0, will return false
-bool prob_of_n_choose_1(int n)
-{
-    if (n <= 0)
-    {
-        return false;
-    }
-    std::uniform_int_distribution<std::mt19937::result_type> dist(1, n);
-
-    if (dist(rng) == 1)
-    {
-        return true;
-    }
-
-    return false;
-}
-
-// This function will return a bool to indicate bypass decision
-// It should be called after found the victim way
-bool CACHE::bypass_decider(uint32_t curr_set, uint64_t newline_tag, uint64_t victim_tag)
-{
-    bool result = prob_of_n_choose_1(prob_table[bypass_control[curr_set].prob]);
-    // Decide to bypass
-    if (result)
-    {
-        // Store the tag to evaluate the effect of bypassing
-        bypass_control[curr_set].competitor_tag.push_back(newline_tag);
-        bypass_control[curr_set].competitor_way.push_back(victim_tag);
-    }
-    // Decide not to bypass
-    else
-    {
-        // Virtual bypassing evaluate
-        // How to define the "some newly allocated lines"?
-        bypass_control[curr_set].competitor_tag.push_back(newline_tag);
-        bypass_control[curr_set].competitor_way.push_back(victim_tag);
-    }
-
-    return result;
-}
-
-template <typename F>
-int vector_find(std::vector<F> &vec, F tar)
-{
-    int index = 0;
-    for (auto &i : vec)
-    {
-        if (i == tar)
-        {
-            return index;
-        }
-        index++;
-    }
-    return -1;
-}
-
-void decr_prob(int &prob)
-{
-    int prob_size = sizeof(prob_table) / sizeof(prob_table[0]);
-    if (prob < prob_size - 1)
-    {
-        prob++;
-    }
-}
-
-void incre_prob(int &prob)
-{
-    if (prob > 0)
-    {
-        prob--;
-    }
-}
-
-// This function must be called for each cache replacement!! (can before found the victim line)
-// It updates the bypass probability for set (if there exist competition)
-void CACHE::bypass_evaluator(uint32_t curr_set, uint64_t newline_tag)
-{
-    int index = vector_find(bypass_control[curr_set].competitor_tag, newline_tag);
-    // Bypassed line win, ineffective bypass
-    if (index != -1)
-    {
-        // printf("Decreased!\n");
-        // printf("Prob value: %d\n", bypass_control[curr_set].prob);
-        decr_prob(bypass_control[curr_set].prob);
-        // printf("Prob value: %d\n", bypass_control[curr_set].prob);
-        // Competition done, remove them from the list
-        bypass_control[curr_set].competitor_tag.erase(bypass_control[curr_set].competitor_tag.begin() + index);
-        bypass_control[curr_set].competitor_way.erase(bypass_control[curr_set].competitor_way.begin() + index);
-    }
-
-    index = vector_find(bypass_control[curr_set].competitor_way, newline_tag);
-    // Victim line win, effective bypass
-    if (index != -1)
-    {
-        // printf("Increased!\n");
-        incre_prob(bypass_control[curr_set].prob);
-        // Competition done, remove them from the list
-        bypass_control[curr_set].competitor_tag.erase(bypass_control[curr_set].competitor_tag.begin() + index);
-        bypass_control[curr_set].competitor_way.erase(bypass_control[curr_set].competitor_way.begin() + index);
-    }
-}
+int8_t policy_counter = 0;
 
 // initialize replacement state
 void CACHE::llc_initialize_replacement()
@@ -155,7 +16,7 @@ void CACHE::llc_initialize_replacement()
 }
 
 leader_type which_leader_type(uint32_t set) {
-    if (!((set % NUM_LEADER_SET) % NUM_LEADER_SET))
+    if (!(set % NUM_LEADER_SET))
         return not_leader;
 
     uint32_t val = (set % NUM_LEADER_SET) / NUM_LEADER_SET;
@@ -174,25 +35,28 @@ void update_policy_counter(int32_t type)
         policy_counter--;
 }
 
-leader_type which_policy() {
-    return policy_counter;
+bool which_policy() {
+    return (policy_counter & 0x80) > 0;
 }
 
 // find replacement victim
 uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type)
 {
-    // TODO: implement set dualing
     uint32_t lru_victim_val = lru_victim(cpu, instr_id, set, current_set, ip, full_addr, type);
     uint32_t slru_victim_val = slru_victim(cpu, instr_id, set, current_set, ip, full_addr, type);
 
     switch(which_leader_type(set)) {
         case not_leader:
-
+            if (which_policy())
+                return slru_victim_val;
+            else
+                return lru_victim_val;
+            
         break;
         case lru_leader:
             return slru_victim_val;
+            
         break;
-
         case slru_leader:
             return lru_victim_val;
         break;

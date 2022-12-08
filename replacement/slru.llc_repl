@@ -4,10 +4,6 @@
 #include <cstdlib>
 #include <time.h>
 
-#define RANDOM_PROMOTION_PROB 32 // p = 1/32 gets promoted
-#define RANDOM_PROMOTION_ACTIVE true
-#define AGING_ACTIVE true
-
 // initialize replacement state
 void CACHE::llc_initialize_replacement()
 {
