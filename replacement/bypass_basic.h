@@ -33,15 +33,25 @@ void CACHE::virtual_bp_report()
 {
     for(int set = 0; set < 2048; ++set){
         printf("In set %d:\n", set);
-        for(int way = 0; way < (int)NUM_WAY; ++way){
+        for(int way = 0; way < (int)LLC_WAY; ++way){
             printf("Way %d's lri is %d\n", way, block[set][way].lri);
+        }
+    }
+}
+
+void virtual_bp_update(uint32_t set, uint32_t way, BLOCK* current_set){
+    current_set[way].lri = 0;
+    for(int i = 0; i < (int)LLC_WAY; ++i) {
+        if(i != (int)way && current_set[i].valid && current_set[i].lri < LRI_THRESHOLD){
+            // printf("At set %d, at way %d\n", set, i);
+            current_set[i].lri++;
         }
     }
 }
 
 uint64_t CACHE::virtual_bypass_helper(uint32_t curr_set){
     std::vector<int> candidate_index;
-    for(int i = 0; i < (int)NUM_WAY; ++i){
+    for(int i = 0; i < (int)LLC_WAY; ++i){
         if(block[curr_set][i].lri < LRI_THRESHOLD){
             candidate_index.push_back(i);
         }
