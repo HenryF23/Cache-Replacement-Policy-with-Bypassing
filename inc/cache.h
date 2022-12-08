@@ -236,11 +236,16 @@ class CACHE : public MEMORY {
              lru_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type);
 
     //Edit by Haoyuan Start
+    #ifdef MY_BYPASS
     bool bypass_decider(uint32_t curr_set, uint64_t newline_tag, uint64_t victim_tag, uint64_t virtual_tag);
     void bypass_evaluator(uint32_t curr_set, uint64_t newline_tag);
+    #endif
+
+    #ifdef VIRTUAL_BY
     uint64_t virtual_bypass_helper(uint32_t curr_set);
     void virtual_bp_report();
     //Edit by Haoyuan End
+    #endif
 
 };
 

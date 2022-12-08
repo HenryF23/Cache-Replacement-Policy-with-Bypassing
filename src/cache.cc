@@ -91,6 +91,9 @@ void CACHE::handle_fill()
     }
     else
         way = find_victim(fill_cpu, MSHR.entry[mshr_index].instr_id, set, block[set], MSHR.entry[mshr_index].ip, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].type);
+    // if (cache_type != IS_LLC) {
+    //     printf("The victim status is %d, address is %ld\n", block[set][way].valid, block[set][way].address);
+    // }
 
 //Edit by Haoyuan Start
 
@@ -139,10 +142,10 @@ void CACHE::handle_fill()
         bool bypass_flag = false;
         #ifdef VIRTUAL_BY
             uint64_t virtual_tag = virtual_bypass_helper(set);
-            bypass_flag = bypass_decider(set, MSHR.entry[mshr_index].address, block[set][way].tag, virtual_tag);
+            bypass_flag = bypass_decider(set, MSHR.entry[mshr_index].address, block[set][way].address, virtual_tag);
             // virtual_bp_report();
         #else
-            bypass_flag = bypass_decider(set, MSHR.entry[mshr_index].address, block[set][way].tag, 0);
+            bypass_flag = bypass_decider(set, MSHR.entry[mshr_index].address, block[set][way].address, 0);
         #endif
         // Decide to bypass
         if(bypass_flag){
@@ -230,11 +233,9 @@ void CACHE::handle_fill()
         if (do_fill){
             // update prefetcher
             if (cache_type == IS_L1D)
-	      l1d_prefetcher_cache_fill(MSHR.entry[mshr_index].full_addr, set, way, (MSHR.entry[mshr_index].type == PREFETCH) ? 1 : 0, block[set][way].address<<LOG2_BLOCK_SIZE,
-					MSHR.entry[mshr_index].pf_metadata);
+	            l1d_prefetcher_cache_fill(MSHR.entry[mshr_index].full_addr, set, way, (MSHR.entry[mshr_index].type == PREFETCH) ? 1 : 0, block[set][way].address<<LOG2_BLOCK_SIZE, MSHR.entry[mshr_index].pf_metadata);
             if  (cache_type == IS_L2C)
-	      MSHR.entry[mshr_index].pf_metadata = l2c_prefetcher_cache_fill(MSHR.entry[mshr_index].address<<LOG2_BLOCK_SIZE, set, way, (MSHR.entry[mshr_index].type == PREFETCH) ? 1 : 0,
-									     block[set][way].address<<LOG2_BLOCK_SIZE, MSHR.entry[mshr_index].pf_metadata);
+	            MSHR.entry[mshr_index].pf_metadata = l2c_prefetcher_cache_fill(MSHR.entry[mshr_index].address<<LOG2_BLOCK_SIZE, set, way, (MSHR.entry[mshr_index].type == PREFETCH) ? 1 : 0, block[set][way].address<<LOG2_BLOCK_SIZE, MSHR.entry[mshr_index].pf_metadata);
             if (cache_type == IS_LLC)
 	      {
 		cpu = fill_cpu;
