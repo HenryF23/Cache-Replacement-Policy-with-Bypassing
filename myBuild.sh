@@ -18,8 +18,8 @@ fi
 if [[ $2 == "test" ]]
 then
     echo "Running in test mode"
-    echo "Running 600.perlbench_s-210B.champsimtrace.xz..."
-    ./run_champsim.sh perceptron-no-no-no-$1-1core 1 10 600.perlbench_s-210B.champsimtrace.xz
+    echo "Running 602.gcc_s-734B.champsimtrace.xz..."
+    ./run_champsim.sh perceptron-no-no-no-$1-1core 1 5 602.gcc_s-734B.champsimtrace.xz
 else
     echo "Running 600.perlbench_s-210B.champsimtrace.xz..."
     ./run_champsim.sh perceptron-no-no-no-$1-1core $2 $3 600.perlbench_s-210B.champsimtrace.xz
