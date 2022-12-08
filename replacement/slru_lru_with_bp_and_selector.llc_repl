@@ -17,13 +17,10 @@ void CACHE::llc_initialize_replacement()
 }
 
 leader_type which_leader_type(uint32_t set) {
-    if (set == 0)
-        return lru_leader;
-        
-    if (NUM_LEADER_SET % set)
+    if (set % NUM_LEADER_SET != 0)
         return not_leader;
 
-    uint32_t val = NUM_LEADER_SET / set;
+    uint32_t val = set / NUM_LEADER_SET;
     
     if (val % 2 == 0)
         return lru_leader;
@@ -31,18 +28,24 @@ leader_type which_leader_type(uint32_t set) {
     return slru_leader;
 }
 
+// positive counter: use slru
+// negative counter: use lru
+// function called when there is a miss
 void update_policy_counter(uint32_t set)
 {
     leader_type myLeaderType = which_leader_type(set);
 
-    if (myLeaderType == lru_leader)
+    if (myLeaderType == lru_leader) //lru miss
         policy_counter++;
-    else if (myLeaderType == lru_leader)
+    else if (myLeaderType == slru_leader) //slru miss
         policy_counter--;
 }
 
+// positive counter: use slru
+// negative counter: use lru
 bool which_policy() {
-    return (policy_counter & 0x80) > 0;
+    // return (policy_counter & 0x80) > 0;
+    return policy_counter > 0;
 }
 
 // find replacement victim
