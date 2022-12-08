@@ -1,5 +1,5 @@
-#define MY_BYPASS
-#define VIRTUAL_BY
+// #define MY_BYPASS
+// #define VIRTUAL_BY
 
 #define RANDOM_PROMOTION_ACTIVE true
 #define AGING_ACTIVE true

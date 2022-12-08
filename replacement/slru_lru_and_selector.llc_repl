@@ -1,0 +1,150 @@
+#include "cache.h"
+
+// * SLRU
+#include <cstdlib>
+#include <time.h>
+
+typedef enum leader_type {
+    not_leader, lru_leader, slru_leader
+} leader_type;
+int8_t policy_counter = 0;
+
+// initialize replacement state
+void CACHE::llc_initialize_replacement()
+{
+    srand(time(0));
+}
+
+leader_type which_leader_type(uint32_t set) {
+    if (set % NUM_LEADER_SET != 0)
+        return not_leader;
+
+    uint32_t val = set / NUM_LEADER_SET;
+    
+    if (val % 2 == 0)
+        return lru_leader;
+
+    return slru_leader;
+}
+
+// positive counter: use slru
+// negative counter: use lru
+// function called when there is a miss
+void update_policy_counter(uint32_t set)
+{
+    leader_type myLeaderType = which_leader_type(set);
+
+    if (myLeaderType == lru_leader) //lru miss
+        policy_counter++;
+    else if (myLeaderType == slru_leader) //slru miss
+        policy_counter--;
+}
+
+// positive counter: use slru
+// negative counter: use lru
+bool which_policy() {
+    // return (policy_counter & 0x80) > 0;
+    return policy_counter > 0;
+}
+
+// find replacement victim
+uint32_t CACHE::llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type)
+{
+    uint32_t lru_victim_val = lru_victim(cpu, instr_id, set, current_set, ip, full_addr, type);
+    uint32_t slru_victim_val = slru_victim(cpu, instr_id, set, current_set, ip, full_addr, type);
+
+    leader_type myLeaderType = which_leader_type(set);
+
+    if (myLeaderType == not_leader) {
+        if (which_policy())
+            return slru_victim_val;
+        else
+            return lru_victim_val;
+    } else if (myLeaderType == lru_leader) {
+        return lru_victim_val;
+    }
+
+    return slru_victim_val;
+}
+
+// called on every cache hit and cache fill
+void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t way, uint64_t full_addr, uint64_t ip, uint64_t victim_addr, uint32_t type, uint8_t hit)
+{
+    string TYPE_NAME;
+    if (type == LOAD)
+        TYPE_NAME = "LOAD";
+    else if (type == RFO)
+        TYPE_NAME = "RFO";
+    else if (type == PREFETCH)
+        TYPE_NAME = "PF";
+    else if (type == WRITEBACK)
+        TYPE_NAME = "WB";
+    else
+        assert(0);
+
+    if (hit)
+        TYPE_NAME += "_HIT";
+    else
+        TYPE_NAME += "_MISS";
+
+    if ((type == WRITEBACK) && ip)
+        assert(0);
+    
+    if (!hit) {
+        update_policy_counter(set);
+    }
+
+    // uncomment this line to see the LLC accesses
+    // cout << "CPU: " << cpu << "  LLC " << setw(9) << TYPE_NAME << " set: " << setw(5) << set << " way: " << setw(2) << way;
+    // cout << hex << " paddr: " << setw(12) << paddr << " ip: " << setw(8) << ip << " victim_addr: " << victim_addr << dec << endl;
+
+    if (hit && (type == WRITEBACK)) // writeback hit does not update SLRU state
+        return;
+
+    if (!hit && (type == LOAD || type == RFO))
+    { // miss, newly allocated line
+        // aging
+        if (AGING_ACTIVE)
+        {
+            uint32_t tempSLRU = 0;
+            for (uint32_t i = 0; i < NUM_WAY; i++)
+            {
+                if (i != way && block[set][i].valid && block[set][i].current_group == prot)
+                {
+                    if (block[set][i].slru >= tempSLRU)
+                        tempSLRU = i;
+                }
+            }
+
+            if (block[set][tempSLRU].valid && block[set][tempSLRU].current_group == prot)
+            {
+                block[set][tempSLRU].current_group = prob;
+                slru_update(set, way);
+            }
+        }
+
+        // random promotion
+        if (RANDOM_PROMOTION_ACTIVE)
+        {
+            if (RANDOM_PROMOTION_ACTIVE && rand() % 100 < RANDOM_PROMOTION_PROB)
+                block[set][way].current_group = prot;
+            else
+                block[set][way].current_group = prob;
+
+            slru_update(set, way);
+        }
+    }
+
+    if (type != WRITEBACK && hit)
+    {
+        // move to protected
+        block[set][way].current_group = prot;
+        slru_update(set, way);
+    }
+
+    lru_update(set, way);
+}
+
+void CACHE::llc_replacement_final_stats()
+{
+}
