@@ -1,5 +1,4 @@
 #include "cache.h"
-#include "bypass_basic.h"
 
 // * SLRU
 #include <cstdlib>
@@ -134,9 +133,6 @@ void CACHE::llc_update_replacement_state(uint32_t cpu, uint32_t set, uint32_t wa
 
             slru_update(set, way);
         }
-
-        // Update lri for virtual bypass
-        virtual_bp_update(set, way, block[set]);
     }
 
     if (type != WRITEBACK && hit)

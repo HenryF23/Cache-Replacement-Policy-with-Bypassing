@@ -42,7 +42,7 @@ def read_data(replacement):
 
 #   plt.savefig("q1.png", format='png', dpi=600)
 
-candidate_repla = ["lru_bp", "lru"]
+candidate_repla = ["slru", "lru_bp", "slru_with_bp", "slru_lru_with_bp_and_selector"]
 baseline = read_data("lru")
 
 final_result = pd.DataFrame(data={"Benchmark": [], "Relative hit rate": [], "Policy": []})

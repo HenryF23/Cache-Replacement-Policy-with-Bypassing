@@ -1,4 +1,5 @@
 /results_*
 /bin
 /obj
+/test
 .vscode
