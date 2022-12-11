@@ -29,6 +29,7 @@ void bypass_report()
     }
 }
 
+#ifdef VIRTUAL_BY
 void CACHE::virtual_bp_report()
 {
     for(int set = 0; set < 2048; ++set){
@@ -64,6 +65,7 @@ uint64_t CACHE::virtual_bypass_helper(uint32_t curr_set){
 
     return luckboy_tag;
 }
+#endif
 
 // If n is 0, will return false
 bool prob_of_n_choose_1(int n)
